@@ -30,7 +30,6 @@ STX = chr(85)
 RESERVED_FOR_STX = chr(85)
 START_SAMPLE_GROUP = chr(86)
 FINISH_UPLOAD = chr(88)
-# s = STX + chr(36) + chr(1) + IN_READ + (3 * chr(0))
 
 def bcd(l):
     if [255, 255, 255] == l: return '-'
@@ -53,7 +52,7 @@ def bcd(l):
     return num.strip()
 
 class Device(serial.Serial):
-    def __init__(self, port = ''):
+    def __init__(self, port = 'COM9'):
         if not port:
             port = self.get_port()
         serial.Serial.__init__(
@@ -79,34 +78,35 @@ class Device(serial.Serial):
         """
 
     def send(self, s, checksum = False):
-        #time.sleep(0.001)
+        time.sleep(1)
         self.flushInput()
         self.flushOutput()
-
         if checksum:
-            self.write(s+chr(sum([ord(c) for c in s]) % 256))
+            # self.write(s.encode()+bytes.fromhex('AB'))
+            # self.write(s.encode()+hex(171).encode())
+            self.write(bytes.fromhex('55240131000000AB'))
+            # time.sleep(0.5)
+            # print(self.read(10))
         else:
-            self.write(s)
-    def receive(self, i = False):
+            self.write(s.encode())
 
-        time.sleep(0.01)
-        # iw = self.inWaiting()
-        #
-        # if False == i: i = iw
-        # if iw >= i:
-        #     #print "reading %i out of %i" % (i, iw)
-        #     r = self.read(i)
-        #     return r
-        # return 'False'
-        r = self.read(i)
-        return r
+    def receive(self, i=False):
+        time.sleep(0.02)
+        iw = self.inWaiting()
+        if False == i: i = iw
+        if iw >= i:
+            #print "reading %i out of %i" % (i, iw)
+            r = self.read(i)
+            return r
+        return 'False'
+
     def connect(self):
         self.close()
         self.open()
         self.send(STX + 'NeuLog!')
-        if 'OK-V' != self.receive(4): return False
+        if b'OK-V' != self.receive(4): return False
         self.status = 'connected'
-        return '.'.join([str(ord(c)) for c in self.receive(3)])
+        return '.'.join([str(c) for c in self.receive(3)])
 
     def scanStart(self):
         if self.status != 'connected': return False
@@ -168,7 +168,7 @@ class Device(serial.Serial):
     def getSensorsData(self, stype, sid):
         if self.status != 'connected': return False
         self.send(STX + chr(stype) + chr(sid) + IN_READ + (3 * chr(0)), True)
-        r = self.receive(8)
+        r = self.receive()
         if not r or STX != r[0] or IN_READ != r[3]: return False
         r = [ord(c) for c in r]
         if r[-1] != sum(r[:-1]) % 256: return False
@@ -296,7 +296,7 @@ def scan():
         available = []
         for i in range(256):
             try:
-                s = serial.Serial(i)
+                s = serial.Serial('COM'+str(i))
                 available.append(s.portstr)
                 s.close()
             except serial.SerialException:
@@ -320,14 +320,14 @@ class gsr(object):
     def __init__(self, unit = False):
         self.unit = unit
         self.factor = (2**16)/10.
-        self.device = Device('COM9')
+        self.device = Device()
         t = time.time()
         while not self.device.connect():
             if time.time() - t > 2:
                 break
 
-    def get_data(self, stype, sid):
-        x = float(self.device.getSensorsData(stype, sid))
+    def get_data(self):
+        x = float(self.device.getSensorsData(8,1))
         if self.unit:
             return x*self.factor
         else:
@@ -336,4 +336,4 @@ class gsr(object):
 if __name__ == '__main__':
     d = gsr()
     while True:
-        print(d.get_data(8,1))
+        print(d.get_data())

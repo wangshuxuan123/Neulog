@@ -1,5 +1,6 @@
 from neulog import gsr
-from gzp import save
+# from gzp import save
+
 import time
 
 """
@@ -16,32 +17,18 @@ data = []
 times = []
 t0 = time.time()
 
-print "First phase..."
-while True: #first phase (eg. 'resting')
+print("First phase...")
+pre_t = 0
+while pre_t<20: #first phase (eg. 'resting')
     try:
-        x = sensor.get_data()
+        x = sensor.get_data(8, 1)
         t = time.time() - t0
-        print t, x
+        # print(t-pre_t, x)
         data.append(x)
         times.append(t)
-    
+        pre_t = t
+
     except KeyboardInterrupt:
         break
 
-breaktime = time.time() - t0
-
-print "Second phase..."
-while True: #second phase (eg. 'attentive')
-    
-    try:
-        x = sensor.get_data()
-        t = time.time() - t0
-        print t, x
-        data.append(x)
-        times.append(t)
-    
-    except KeyboardInterrupt:
-        break
-
-print "Done - saving to disk ('experiment.dat')"
-save([data, times, breaktime], "experiment.dat")
+# save([data, times, breaktime], "experiment.dat")
